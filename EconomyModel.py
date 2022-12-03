@@ -3,7 +3,7 @@ import random, math, numpy as np
 
 from mesa import Agent, Model
 from mesa.time import RandomActivation
-from mesa.space import SingleGrid
+from mesa.space import SingleGrid, MultiGrid
 from mesa.datacollection import DataCollector
 
 # global variables
@@ -21,7 +21,7 @@ class EconomyModel(Model):
     def __init__(self, num_agents, height, width):
         self.num_agents = num_agents
         self.running = True
-        self.grid = SingleGrid(height, width, True)
+        self.grid = MultiGrid(height, width, True)
         self.schedule = RandomActivation(self)
         self.datacollector = DataCollector(
             model_reporters = {},
@@ -34,7 +34,10 @@ class EconomyModel(Model):
             self.schedule.add(agent)
             x = random.randrange(self.grid.width)
             y = random.randrange(self.grid.height)
-            self.grid.place_agent(agent, (x,y))
+            try:
+                self.grid.place_agent(agent, (x,y))
+            except:
+                self.grid.place_agent(agent, self.grid.find_empty)
         
 
         def step(self):
@@ -47,14 +50,15 @@ class AgentModel(Agent):
 
     global asset_mean
     global asset_stdev
-    global treasury
 
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
 
+        global treasury
+
         self.asset_wealth = np.random.normal(asset_mean, asset_stdev)
         self.token_wealth = 0.7 * self.asset_wealth
-        treasury += 0.3 * self.asset_wealth
+        treasury = treasury + 0.3 * self.asset_wealth
 
 
     def move(self):
@@ -70,8 +74,6 @@ class AgentModel(Agent):
     def step(self):
         pass
 
-
-baseModel = EconomyModel(100, 10, 10)
 
 
 """
