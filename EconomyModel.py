@@ -8,6 +8,7 @@ from mesa.datacollection import DataCollector
 
 # global variables
 treasury = 0
+incentive_pool = 0
 asset_mean = 500
 asset_stdev = 100
 
@@ -45,6 +46,10 @@ class EconomyModel(Model):
             self.schedule.step()
 
 
+        def grow(self): # grown agent population according to Bass diffusion model
+            pass
+
+
 
 class AgentModel(Agent):
 
@@ -54,11 +59,13 @@ class AgentModel(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
 
-        global treasury
+        global treasury, incentive_pool
 
         self.asset_wealth = np.random.normal(asset_mean, asset_stdev)
         self.token_wealth = 0.7 * self.asset_wealth
-        treasury = treasury + 0.3 * self.asset_wealth
+        treasury += 0.3 * self.asset_wealth
+        incentive_pool += 0.05 * incentive_pool
+
 
 
     def move(self):
