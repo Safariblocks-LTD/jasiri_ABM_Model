@@ -9,6 +9,7 @@ from mesa.datacollection import DataCollector
 # global variables
 treasury = 0
 incentive_pool = 0
+economy_token_wealth = 0
 asset_mean = 500
 asset_stdev = 100
 
@@ -25,8 +26,8 @@ class EconomyModel(Model):
         self.grid = MultiGrid(height, width, True)
         self.schedule = RandomActivation(self)
         self.datacollector = DataCollector(
-            model_reporters = {},
-            agent_reporters = {}
+            model_reporters = {"Incentive Gini index": incentive_gini},
+            agent_reporters = {"Token wealth": lambda agent: agent.token_wealth}
         )
 
         # create agents
@@ -41,13 +42,22 @@ class EconomyModel(Model):
                 self.grid.place_agent(agent, self.grid.find_empty)
         
 
+        def grow(self): # grown agent population according to Bass diffusion model
+            pass
+
+
         def step(self):
             self.datacollector.collect(self)
+            # the model shuffles the order of the agents, then activates and executes each agent’s step method the agent's
+            # step method calls the methods within the AgentModel class that define agent behavior (response to incentive, ...)
             self.schedule.step()
 
 
-        def grow(self): # grown agent population according to Bass diffusion model
-            pass
+        def run_model(self, n):
+            for i in range(n):
+                self.step()
+                print("step = ", step())
+
 
 
 
@@ -59,13 +69,28 @@ class AgentModel(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
 
-        global treasury, incentive_pool
+        global treasury, incentive_pool, economy_token_wealth
 
         self.asset_wealth = np.random.normal(asset_mean, asset_stdev)
-        self.token_wealth = 0.7 * self.asset_wealth
-        treasury += 0.3 * self.asset_wealth
-        incentive_pool += 0.05 * incentive_pool
+        self.token_wealth = (1.0-0.3-0.05) * self.asset_wealth # @IMPLEMENT: handle decimal precision
+        economy_token_wealth += self.token_wealth
+        treasury += 0.3 * self.asset_wealth # 30% of the asset value is put into the treasury as protocol revenue
+        incentive_pool += 0.05 * self.asset_wealth # 5% of the asset value is put into the incentive pool
 
+    
+    def choose_to_assure_asset(self):
+
+        assure_asset = True
+
+        return assure_asset
+
+
+    def get_incentive(self):
+        if choose_to_assure_asset:
+        # if the agent assures ownership of the asset during this timestep, there is a probability p (now 10%) that they will be given incentive
+        # @IMPLEMENT: where p is a fraction of the number of agents who have assured ownership during this timestep
+            if random.randint(1,10) == 0: # there is a 10% chance of this
+                self.token_wealth += incentive_pool * (self.token_wealth / economy_token_wealth)
 
 
     def move(self):

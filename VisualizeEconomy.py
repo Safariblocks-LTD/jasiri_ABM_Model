@@ -9,7 +9,7 @@ from mesa.visualization.ModularVisualization import ModularServer
 
 from EconomyModel import EconomyModel
 
-economy_scale = 15
+economy_scale = 25
 
 def agent_portrayal(agent):
     portrayal = {
@@ -78,6 +78,6 @@ chart = ChartModule([
 )
 #text = TextElement(js_code="document.write(5 + 6);")
 
-server = ModularServer(EconomyModel, [grid, chart], "Economy Model", { "num_agents" : economy_scale*economy_scale, "width" : economy_scale, "height" : economy_scale} )
+server = ModularServer(EconomyModel, [grid, chart], "Economy Model", { "num_agents" : 1425, "width" : economy_scale, "height" : economy_scale} )
 server.port = 8521
 server.launch()
