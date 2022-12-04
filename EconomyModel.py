@@ -46,17 +46,19 @@ class EconomyModel(Model):
             pass
 
 
-        def step(self):
-            self.datacollector.collect(self)
-            # the model shuffles the order of the agents, then activates and executes each agent’s step method the agent's
-            # step method calls the methods within the AgentModel class that define agent behavior (response to incentive, ...)
-            self.schedule.step()
-
-
         def run_model(self, n):
             for i in range(n):
                 self.step()
                 print("step = ", step())
+
+
+        def step(self):
+            self.datacollector.collect(self)
+            # the model shuffles the order of the agents, then activates and executes each agents step method the agents
+            # step method calls the methods within the AgentModel class that define agent behavior (response to incentive, ...)
+            self.schedule.step()
+            # self.sigmoidal_incentive_mechanism()
+            # self.recursive_incentive_mechanism()
 
 
 
@@ -79,6 +81,10 @@ class AgentModel(Agent):
 
     
     def choose_to_assure_asset(self):
+        # start at a 50% average probability that agents will assure asset ownership and increase this as incentive is put into the economy
+        # the probability is per capita average
+        # a sigmoid function is 
+        assurance_probability = 0.5 * incentive_pool
 
         assure_asset = True
 
@@ -101,6 +107,19 @@ class AgentModel(Agent):
     def transact(self):
         # perform some transaction in the economy
         pass
+
+
+    k = 1 # change this to step number
+    
+    if k = 1:
+        self.assurance_probability = 0.5
+
+    def sigmoidal_incentive_mechanism(self):
+        self.assurance_probability = 0.5 + (0.5 / 1 + math.exp(-1 * incentive_pool * (self.token_wealth / economy_token_wealth) * k)) # @IMPLEMENT step count k to mimic x along x-axis
+
+
+    def recursive_incentive_mechanism(self):
+        self.assurance_probability += incentive_pool * (self.token_wealth / economy_token_wealth) * (1 - self.assurance_probability)
 
 
     def step(self):
