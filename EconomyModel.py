@@ -50,8 +50,7 @@ class EconomyModel(Model):
                 self.step()
                 print("step = ", step())
 
-
-        def step(self, run_i):
+        def step(self):
             self.datacollector.collect(self)
             # the model shuffles the order of the agents, then activates and executes each agents step method the agents
             # step method calls the methods within the AgentModel class that define agent behavior (response to incentive, ...)
@@ -89,6 +88,24 @@ class AgentModel(Agent):
     #     a sigmoid function is
     #     assure_asset = True
     #     return assure_asset
+
+    def choose_to_assure_asset(self):
+        # start at a 50% average probability that agents will assure asset ownership and increase this as incentive is put into the economy
+        # the probability is per capita average
+        # a sigmoid function is 
+        assurance_probability = 0.5 * incentive_pool
+
+        assure_asset = True
+
+        return assure_asset
+
+
+    def get_incentive(self):
+        if choose_to_assure_asset:
+        # if the agent assures ownership of the asset during this timestep, there is a probability p (now 10%) that they will be given incentive
+        # @IMPLEMENT: where p is a fraction of the number of agents who have assured ownership during this timestep
+            if random.randint(1,10) == 0: # there is a 10% chance of this
+                self.token_wealth += incentive_pool * (self.token_wealth / economy_token_wealth)
 
     # Now when there is a step/ iteration in the model, this will be applied to agents who assure their wealth
     # of the agents who have assured their wealth, 1/frac is the fraction that is to be rewarded randomly
@@ -132,8 +149,6 @@ if __name__ == "__main__":
 
     for run_i in range(3):
         economyModel.step(run_i)
-
-
 
 
 """
