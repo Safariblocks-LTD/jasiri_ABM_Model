@@ -25,6 +25,7 @@ class EconomyModel(Model):
         self.running = True
         self.grid = MultiGrid(height, width, True)
         self.schedule = RandomActivation(self)
+        self.model_assurace_probability = 0
         self.datacollector = DataCollector(
         )
 
@@ -38,7 +39,14 @@ class EconomyModel(Model):
                 self.grid.place_agent(agent, (x, y))
             except Exception:
                 self.grid.place_agent(agent, self.grid.find_empty) # could just use this to place agents then
-        
+    
+
+    def update_model_assurace_probability(self):
+        sum = 0
+        for agent in self.schedule.agents:
+            sum += agent.assurance_probability
+        self.model_assurace_probability = sum / self.num_agents
+
         # grown agent population according to Bass diffusion model, incorporate decrease
     def grow(self):
         pass
@@ -55,8 +63,9 @@ class EconomyModel(Model):
             # step method calls the methods within the AgentModel class that define agent behavior (response to incentive, ...)
             #print(f"This is run number {run_i}.")
         self.schedule.step()
-            # self.sigmoidal_incentive_mechanism()
-            # self.recursive_incentive_mechanism()
+        self.update_model_assurace_probability()
+        print(f"Model assurance probability is {self.model_assurace_probability}.")
+
 
 
 
@@ -73,9 +82,11 @@ class AgentModel(Agent):
 
         self.asset_wealth = np.random.normal(asset_mean, asset_stdev)
         self.token_wealth = (1.0-0.3-0.05) * self.asset_wealth # @IMPLEMENT: handle decimal precision
-        self.assurance_probability = 0.5
         self.has_transacted = False
         self.incentive = incentive_pool * (self.token_wealth / economy_token_wealth)
+        self.assurance_probability = np.random.normal(0.7, 0.1)
+        while (self.assurance_probability < 0 or self.assurance_probability > 1):
+            self.assurance_probability = np.random.normal(0.7, 0.1)
 
         economy_token_wealth += self.token_wealth
         treasury += 0.3 * self.asset_wealth # 30% of the asset value is put into the treasury as protocol revenue
@@ -112,19 +123,22 @@ class AgentModel(Agent):
             self.assurance_probability *= 0.85
 
     def step(self):
-        self.sigmoidal_incentive_mechanism(self.incentive)
-        print(f"Got called! {self.unique_id}")
-
+        # self.sigmoidal_incentive_mechanism(self.incentive)
+        print(f"My assurance probability is {self.assurance_probability}")
+        print()
 
 
 
 if __name__ == "__main__":
 
-    economyModel = EconomyModel(10, 10, 10)
+    economyModel = EconomyModel(3, 10, 10)
 
     #for run_i in range(2):
     #    economyModel.step()
-    economyModel.execute_model(2)
+    economyModel.execute_model(1)
+
+
+
 
 """
         INTERNAL DOCUMENTATION
