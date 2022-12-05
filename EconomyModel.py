@@ -11,6 +11,7 @@ incentive_pool = 0
 economy_token_wealth = 1
 asset_mean = 500    # for when agents are first tokenizing assets
 asset_stdev = 100
+fraction_to_reward = 10
 
 def incentive_gini():
     # this method computes the degree of disparity in the reaction to incentives among agents in the economy
@@ -62,11 +63,9 @@ class EconomyModel(Model):
             # the model shuffles the order of the agents, then activates and executes each agents step method the agents
             # step method calls the methods within the AgentModel class that define agent behavior (response to incentive, ...)
             #print(f"This is run number {run_i}.")
-        self.schedule.step()
+        self.schedule.step() # activates agents randomly by calling their step()
         self.update_model_assurace_probability()
         print(f"Model assurance probability is {self.model_assurace_probability}.")
-
-
 
 
 
@@ -86,7 +85,8 @@ class AgentModel(Agent):
         self.incentive = incentive_pool * (self.token_wealth / economy_token_wealth)
         self.assurance_probability = np.random.normal(0.7, 0.1)
         while (self.assurance_probability < 0 or self.assurance_probability > 1):
-            self.assurance_probability = np.random.normal(0.7, 0.1)
+            self.assurance_probability = np.random.normal(0.65, 0.1)
+        self.model_assurace_probability = self.model.model_assurace_probability
 
         economy_token_wealth += self.token_wealth
         treasury += 0.3 * self.asset_wealth # 30% of the asset value is put into the treasury as protocol revenue
@@ -94,10 +94,12 @@ class AgentModel(Agent):
 
     # Now when there is a step/ iteration in the model, this will be applied to agents who assure their wealth
     # of the agents who have assured their wealth, 1/frac is the fraction that is to be rewarded randomly
-    def get_incentive(self, frac):
-        if random.randint(1,frac) == 1: # there is a 1/frac chance of this
-            self.token_wealth += self.incentive
-            self.sigmoidal_incentive_mechanism(self.incentive)
+    # increase 10000 for finer correspondence to actual probability
+    def get_incentive(self, model_assurace_probability, frac):
+        if random.randint(1, 10000) in range(1, int(model_assurace_probability*10000)): # only model_assurace_probability of total will assure
+            if random.randint(1,frac) == 1: # there is a 1/frac chance of this
+                self.token_wealth += self.incentive
+                self.update_assurance_probability_sigmoidal(self.incentive)
 
     def move(self):
         # might want to design some meaning into the physical position of the agent to be analogous to their po sition in the real world
@@ -109,10 +111,10 @@ class AgentModel(Agent):
         self.has_transacted = True
 
     # the incentive pool can decrease if more is given out than is put in
-    def sigmoidal_incentive_mechanism(self, incentive):
+    def update_assurance_probability_sigmoidal(self, incentive):
         self.assurance_probability = 0.1 + (0.9 / 1 + math.exp(-1 * incentive)) # @IMPLEMENT step count k to mimic x along x-axis
 
-    def recursive_incentive_mechanism(self, incentive):
+    def update_assurance_probability_recursive(self, incentive):
         self.assurance_probability += incentive * (1 - self.assurance_probability)
 
     # as a fraction of agents who assure ownership are rewarded randomly, those who are not are slightly less likely to assure ownership next
@@ -123,8 +125,9 @@ class AgentModel(Agent):
             self.assurance_probability *= 0.85
 
     def step(self):
-        # self.sigmoidal_incentive_mechanism(self.incentive)
+        #self.get_incentive()
         print(f"My assurance probability is {self.assurance_probability}")
+        print(f"Model assurance probability is {self.model_assurace_probability}")
         print()
 
 
