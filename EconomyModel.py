@@ -40,7 +40,9 @@ class EconomyModel(Model):
                 self.grid.place_agent(agent, (x, y))
             except Exception:
                 self.grid.place_agent(agent, self.grid.find_empty) # could just use this to place agents then
-    
+
+        self.update_model_assurace_probability()
+
 
     def update_model_assurace_probability(self):
         sum = 0
@@ -60,12 +62,9 @@ class EconomyModel(Model):
 
     def step(self):
         self.datacollector.collect(self)
-            # the model shuffles the order of the agents, then activates and executes each agents step method the agents
-            # step method calls the methods within the AgentModel class that define agent behavior (response to incentive, ...)
-            #print(f"This is run number {run_i}.")
         self.schedule.step() # activates agents randomly by calling their step()
-        self.update_model_assurace_probability()
-        print(f"Model assurance probability is {self.model_assurace_probability}.")
+        print(f"Model says it's assurance probability is {self.model_assurace_probability}.")
+        print()
 
 
 
@@ -97,9 +96,11 @@ class AgentModel(Agent):
     # increase 10000 for finer correspondence to actual probability
     def get_incentive(self, model_assurace_probability, frac):
         if random.randint(1, 10000) in range(1, int(model_assurace_probability*10000)): # only model_assurace_probability of total will assure
-            if random.randint(1,frac) == 1: # there is a 1/frac chance of this
+            if random.randint(1, frac) == 1: # there is a 1/frac chance of this
                 self.token_wealth += self.incentive
-                self.update_assurance_probability_sigmoidal(self.incentive)
+                self.update_assurance_probability_recursive(self.incentive)
+            else:
+                self.non_incentivization_effect()
 
     def move(self):
         # might want to design some meaning into the physical position of the agent to be analogous to their po sition in the real world
@@ -126,10 +127,7 @@ class AgentModel(Agent):
 
     def step(self):
         #self.get_incentive()
-        print(f"My assurance probability is {self.assurance_probability}")
-        print(f"Model assurance probability is {self.model_assurace_probability}")
-        print()
-
+        pass
 
 
 if __name__ == "__main__":
