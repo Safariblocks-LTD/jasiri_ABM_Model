@@ -5,15 +5,17 @@ from mesa.time import RandomActivation
 from mesa.space import SingleGrid, MultiGrid
 from mesa.datacollection import DataCollector
 
-# global variables
 
+# global variables
 assurance_incentive_pool = 0
 transaction_incentive_pool = 0
 economy_token_wealth = 1
 asset_mean = 500
 asset_stdev = 100
 fraction_to_reward = 2 # one in this many agents to reward for assuring ownership
+                       # set 1 in 2 (50%) for easier demonstaration of effect of incentive on smaller number of agents
 liquidity_providers_incentive_pool = 0
+
 
 def assurance_incentive_gini(model):
     agent_assurance_incentive = [agent.assurance_incentive for agent in model.schedule.agents]
@@ -22,9 +24,12 @@ def assurance_incentive_gini(model):
     B = sum(xi * (N - i) for i, xi in enumerate(x)) / (N * sum(x))
     return 1 + (1 / N) - 2 * B
 
-def revenue(model):
+
+def get_revenue(model):
     return model.protocol_revenue
 
+def get_model_assurance_probability(model):
+    return model.model_assurace_probability
 
 class EconomyModel(Model):
 
@@ -38,11 +43,15 @@ class EconomyModel(Model):
         self.model_assurace_probability = 0
         self.model_assurace_probabilities = list()
         self.protocol_revenue = 0
-        self.unlock = 0
+        self.unlock_reserve = 0
         self.datacollector = DataCollector(
-            model_reporters = {"Gini": assurance_incentive_gini, "Protocol revenue": revenue},
-            agent_reporters = {"Assurance incentive": "assurance_incentive"}
+            model_reporters = {
+                "Model assurance probability": get_model_assurance_probability
+            },
+            agent_reporters = {"Assurance probability": "assurance_probability"}
         )
+        #self.datacollector = DataCollector(model_reporters = {"Protocol revenue": get_revenue, "Model assurance probability": get_model_assurance_probability
+        #    }, agent_reporters = {"Assurance probability": "assurance_probability"})
 
         # create agents
         for agent_index in range(self.num_agents):
@@ -54,10 +63,11 @@ class EconomyModel(Model):
             try:
                 self.grid.place_agent(agent, (x, y))
             except Exception:
-                self.grid.place_agent(agent, self.grid.find_empty) # could just use this to place agents then
+                self.grid.place_agent(agent, self.grid.find_empty)
         
         self.update_model_assurace_probability()
     
+
     def update_model_assurace_probability(self):
         sum = 0
         for agent in self.schedule.agents:
@@ -65,16 +75,19 @@ class EconomyModel(Model):
         self.model_assurace_probability = sum / self.num_agents
         self.model_assurace_probabilities.append(self.model_assurace_probability)
 
+
+    # grow agent population according to Bass diffusion model, compare different models
     def grow(self):
         pass
+
 
     def execute_model(self, n):
         for i in range(n):
             self.step()
-        gini = self.datacollector.get_model_vars_dataframe()
-        agent_assurance_probabilities = self.datacollector.get_agent_vars_dataframe()
-        gini.plot()
-        agent_assurance_probabilities.head()
+        model_assurace_probabilities = economyModel.datacollector.get_model_vars_dataframe()
+        protocol_revenue = economyModel.datacollector.get_model_vars_dataframe()
+        model_assurace_probabilities.plot()
+
 
     def step(self):
         self.datacollector.collect(self)
@@ -84,7 +97,7 @@ class EconomyModel(Model):
         #    print(f"Model assurance probability is {model_assurace_probability} \n")
         print(f"Model assurance probability is {self.model_assurace_probability} ")
         print(f"Assurance incentive pool: {assurance_incentive_pool}")
-        print(f"Protocol reveue: {revenue(self)}")
+        print(f"Protocol reveue: {get_revenue(self)}")
 
 
 
@@ -99,29 +112,30 @@ class AgentModel(Agent):
         global assurance_incentive_pool, transaction_incentive_pool, economy_token_wealth, fraction_to_reward, liquidity_providers_incentive_pool
 
         self.asset_wealth = np.random.normal(asset_mean, asset_stdev)
-        self.model.unlock += self.asset_wealth # mint same no of UNLOCK as price of the asset
-        self.token_wealth = (1.0-0.3-0.05) * self.asset_wealth # @IMPLEMENT: handle decimal precision
+        self.model.unlock_reserve += self.asset_wealth # mint same number of UNLOCK as price of the asset
+        self.token_wealth = (1.0-0.3-0.075) * self.asset_wealth # @IMPLEMENT: handle decimal precision
         economy_token_wealth += self.token_wealth
         self.model.protocol_revenue += 0.3 * self.asset_wealth
         assurance_incentive_pool += 0.025 * self.asset_wealth
         transaction_incentive_pool += 0.025 * self.asset_wealth
         liquidity_providers_incentive_pool += 0.025 * self.asset_wealth
 
-        self.has_transacted = False # maintain at this level since may want to count number of agents transacting in step k
+        self.has_transacted = False
         self.assurance_incentive = assurance_incentive_pool * (self.token_wealth / economy_token_wealth)
         self.transaction_incentive = transaction_incentive_pool * (self.token_wealth / economy_token_wealth)
 
-        self.assurance_probability = np.random.normal(0.65, 0.1)
+        self.assurance_probability = np.random.normal(0.65, 0.1) # when we start, we assume agents who have just joined the network are more than indifferent (>50%)
         while (self.assurance_probability < 0 or self.assurance_probability > 1):
             self.assurance_probability = np.random.normal(0.65, 0.1)
         self.model_assurace_probability = self.model.model_assurace_probability
-        #self.step()
-    
 
+
+    # subsequent tokenization of assets after the first
+    # ASSUMPTION: dependent on the utility of UNLOCK, which is dependent on its price stability, which is dependent on liquidity
     def tokenize(self):
         self.asset_wealth += np.random.normal(asset_mean, asset_stdev)
-        self.model.unlock += self.asset_wealth # mint same no of UNLOCK as price of the asset
-        self.token_wealth += (1.0-0.3-0.05) * self.asset_wealth # @IMPLEMENT: handle decimal precision
+        self.model.unlock += self.asset_wealth
+        self.token_wealth += (1.0-0.3-0.05) * self.asset_wealth
         economy_token_wealth += self.token_wealth
         self.model.protocol_revenue += 0.3 * self.asset_wealth
         assurance_incentive_pool += 0.025 * self.asset_wealth
@@ -241,17 +255,13 @@ if __name__ == "__main__":
 
     economyModel = EconomyModel(4, 10, 10)
 
-    #for run_i in range(2):
+    #for run_i in range(2):     
     #    economyModel.step()
     economyModel.execute_model(10)
-    
+
     #gini = economyModel.datacollector.get_model_vars_dataframe()
     agent_assurance_probabilities = economyModel.datacollector.get_agent_vars_dataframe()
-
-    model_assurace_probabilities = economyModel.datacollector.get_model_vars_dataframe()
-    protocol_revenue = economyModel.datacollector.get_model_vars_dataframe()
-    #gini.plot()
     print(agent_assurance_probabilities.head(n=40))
     #agent_assurance_probabilities.plot()
-    model_assurace_probabilities.plot()
-    protocol_revenue.plot()
+
+    
