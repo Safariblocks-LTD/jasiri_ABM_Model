@@ -12,7 +12,7 @@ transaction_incentive_pool = 0
 economy_token_wealth = 1
 asset_mean = 500
 asset_stdev = 100
-fraction_to_reward = 2 # one in this many agents to reward for assuring ownership
+fraction_to_reward = 20 # one in this many agents to reward for assuring ownership
                        # set 1 in 2 (50%) for easier demonstaration of effect of incentive on smaller number of agents
 liquidity_providers_incentive_pool = 0
 
@@ -87,6 +87,8 @@ class EconomyModel(Model):
         model_assurace_probabilities = economyModel.datacollector.get_model_vars_dataframe()
         protocol_revenue = economyModel.datacollector.get_model_vars_dataframe()
         model_assurace_probabilities.plot()
+        print(f"\nRewarded assured fraction is one in {fraction_to_reward} agents who assured asset in last 30-day period.")
+        print(f"Number of agents in network is {self.num_agents} \n")
 
 
     def step(self):
@@ -95,9 +97,9 @@ class EconomyModel(Model):
         self.update_model_assurace_probability()
         #for model_assurace_probability in self.model_assurace_probabilities:
         #    print(f"Model assurance probability is {model_assurace_probability} \n")
-        print(f"Model assurance probability is {self.model_assurace_probability} ")
-        print(f"Assurance incentive pool: {assurance_incentive_pool}")
-        print(f"Protocol reveue: {get_revenue(self)}")
+        #print(f"Model assurance probability is {self.model_assurace_probability} ")
+        #print(f"Assurance incentive pool: {assurance_incentive_pool}")
+        #print(f"Protocol reveue: {get_revenue(self)}")
 
 
 
@@ -147,7 +149,7 @@ class AgentModel(Agent):
 
             if random.randint(1,frac) == 1: # if rewarded
                 self.token_wealth += self.assurance_incentive
-                self.update_assurance_probability_recursive(self.assurance_incentive, -30)
+                self.update_assurance_probability_recursive(self.assurance_incentive, -14) 
             else: # if not rewarded for assurance
                 self.assurance_probability *= 0.98 # because assured but was not rewarded. Express in sigmoid func terms
     
@@ -165,13 +167,13 @@ class AgentModel(Agent):
 
     # using the sigmoid function because reaction is not linear: getting 100 times more incentive does not means you are 100 times more likely to act i.e. plateaus
     def update_assurance_probability_recursive(self, incentive, β):
-        self.assurance_probability += (1 - self.assurance_probability) * (1 / (1 + math.exp(-1 * (incentive + β) )))
+        self.assurance_probability += (1 - self.assurance_probability) * (1 / (1 + math.exp(-1 * (incentive) )))
 
     # def non_incentivization_effect(self): move effect here for more detail            
 
     def step(self):
         self.evaluate_incentive(self.model.model_assurace_probability, fraction_to_reward) # more like dis/incentivize
-        print(f"Agent {self.unique_id}. Assurance probability: {self.assurance_probability}, token wealth: {self.token_wealth} \n")
+        #print(f"Agent {self.unique_id}. Assurance probability: {self.assurance_probability}, token wealth: {self.token_wealth} \n")
 
 
 
@@ -257,11 +259,9 @@ if __name__ == "__main__":
 
     #for run_i in range(2):     
     #    economyModel.step()
-    economyModel.execute_model(10)
+    economyModel.execute_model(30)
 
     #gini = economyModel.datacollector.get_model_vars_dataframe()
     agent_assurance_probabilities = economyModel.datacollector.get_agent_vars_dataframe()
     print(agent_assurance_probabilities.head(n=40))
     #agent_assurance_probabilities.plot()
-
-    
