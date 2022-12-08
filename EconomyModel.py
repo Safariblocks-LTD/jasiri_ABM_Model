@@ -46,7 +46,7 @@ class EconomyModel(Model):
         self.unlock_reserve = 0
         self.datacollector = DataCollector(
             model_reporters = {
-                "Model assurance probability": get_model_assurance_probability
+                "Protocol revenue": get_revenue, "Model assurance probability": get_model_assurance_probability
             },
             agent_reporters = {"Assurance probability": "assurance_probability"}
         )
@@ -135,8 +135,12 @@ class AgentModel(Agent):
     # subsequent tokenization of assets after the first
     # ASSUMPTION: dependent on the utility of UNLOCK, which is dependent on its price stability, which is dependent on liquidity
     def tokenize(self):
+        # the likelihood of subsequent tokenization depends on: activity in the network
+        
+        global assurance_incentive_pool, transaction_incentive_pool, economy_token_wealth, fraction_to_reward, liquidity_providers_incentive_pool
+        
         self.asset_wealth += np.random.normal(asset_mean, asset_stdev)
-        self.model.unlock += self.asset_wealth
+        self.model.unlock_reserve += self.asset_wealth
         self.token_wealth += (1.0-0.3-0.05) * self.asset_wealth
         economy_token_wealth += self.token_wealth
         self.model.protocol_revenue += 0.3 * self.asset_wealth
@@ -173,6 +177,7 @@ class AgentModel(Agent):
 
     def step(self):
         self.evaluate_incentive(self.model.model_assurace_probability, fraction_to_reward) # more like dis/incentivize
+        if self.assurance_probability * self.model.model_assurace_probability > 0.35: self.tokenize()
         #print(f"Agent {self.unique_id}. Assurance probability: {self.assurance_probability}, token wealth: {self.token_wealth} \n")
 
 
