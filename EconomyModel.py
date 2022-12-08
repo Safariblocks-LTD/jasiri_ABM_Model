@@ -35,7 +35,7 @@ class EconomyModel(Model):
 
     global assurance_incentive_pool, protocol_revenue
 
-    def __init__(self, num_agents, height, width):
+    def __init__(self, num_agents, height, width, liquidityPoolModel):
         self.num_agents = num_agents
         self.running = True
         self.grid = MultiGrid(height, width, True)
@@ -50,6 +50,7 @@ class EconomyModel(Model):
             },
             agent_reporters = {"Assurance probability": "assurance_probability"}
         )
+        self.myLiquidityPool = liquidityPoolModel
         #self.datacollector = DataCollector(model_reporters = {"Protocol revenue": get_revenue, "Model assurance probability": get_model_assurance_probability
         #    }, agent_reporters = {"Assurance probability": "assurance_probability"})
 
@@ -134,18 +135,25 @@ class AgentModel(Agent):
 
     # subsequent tokenization of assets after the first
     # ASSUMPTION: dependent on the utility of UNLOCK, which is dependent on its price stability, which is dependent on liquidity
-    def tokenize(self):
+    def tokenize(self, liquidityPoolModel):
         # the likelihood of subsequent tokenization depends on: activity in the network
+
+        asset_value = np.random.normal(asset_mean, asset_stdev)
+        UNLOCK_value = (1.0-0.3-0.075) * self.asset_wealth
+        liquidity_confidence_score = UNLOCK_value / liquidityPoolModel.UNLOCK_volume
+
+        if self.assurance_probability * self.model.model_assurace_probability > 0.35 and liquidity_confidence_score > 0.01: 
+
+            global assurance_incentive_pool, transaction_incentive_pool, economy_token_wealth, fraction_to_reward, liquidity_providers_incentive_pool
         
-        global assurance_incentive_pool, transaction_incentive_pool, economy_token_wealth, fraction_to_reward, liquidity_providers_incentive_pool
-        
-        self.asset_wealth += np.random.normal(asset_mean, asset_stdev)
-        self.model.unlock_reserve += self.asset_wealth
-        self.token_wealth += (1.0-0.3-0.05) * self.asset_wealth
-        economy_token_wealth += self.token_wealth
-        self.model.protocol_revenue += 0.3 * self.asset_wealth
-        assurance_incentive_pool += 0.025 * self.asset_wealth
-        transaction_incentive_pool += 0.025 * self.asset_wealth
+            self.asset_wealth += asset_value
+            self.model.unlock_reserve += self.asset_wealth
+            self.token_wealth += (1.0-0.3-0.075) * self.asset_wealth
+            economy_token_wealth += self.token_wealth
+            self.model.protocol_revenue += 0.3 * self.asset_wealth
+            assurance_incentive_pool += 0.025 * self.asset_wealth
+            transaction_incentive_pool += 0.025 * self.asset_wealth
+            liquidity_providers_incentive_pool += 0.025 * self.asset_wealth
 
  
     def evaluate_incentive(self, model_assurace_probability, frac):
@@ -177,7 +185,7 @@ class AgentModel(Agent):
 
     def step(self):
         self.evaluate_incentive(self.model.model_assurace_probability, fraction_to_reward) # more like dis/incentivize
-        if self.assurance_probability * self.model.model_assurace_probability > 0.35: self.tokenize()
+        self.tokenize(self.model.myLiquidityPool)
         #print(f"Agent {self.unique_id}. Assurance probability: {self.assurance_probability}, token wealth: {self.token_wealth} \n")
 
 
@@ -193,13 +201,20 @@ class LiquidityPoolModel(Model):
         self.schedule = RandomActivation(self)
         self.liquidity_provider_UNLOCK_mean = 100
         self.liquidity_provider_UNLOCK_variance = 20
-        self.UNLOCK_volume = 1000
-        self.ALGO_volume = 4000
+        self.UNLOCK_volume = 100000 # initialized volumes to provide some liquidity
+        self.ALGO_volume = 400000
 
-        for liquidity_provider_id in num_liquidity_providers:
+        self.grid = MultiGrid(height, width, True)
+
+        for liquidity_provider_id in range(num_liquidity_providers):
             liquidity_provider = LiquidityProvider(liquidity_provider_id, self)
             self.schedule.add(liquidity_provider)
-            self.grid.place_agent(liquidity_provider, self.grid.find_empty)
+            x = random.randrange(self.grid.width)
+            y = random.randrange(self.grid.height)
+            try:
+                self.grid.place_agent(liquidity_provider, (x, y))
+            except Exception:
+                self.grid.place_agent(liquidity_provider, self.grid.find_empty)
 
 
 
@@ -260,8 +275,10 @@ class LiquidityProvider(Agent):
 
 if __name__ == "__main__":
 
-    economyModel = EconomyModel(4, 10, 10)
+    liquidityPoolModel = LiquidityPoolModel(50, 10, 10)
 
+    economyModel = EconomyModel(4, 10, 10, liquidityPoolModel)
+    
     #for run_i in range(2):     
     #    economyModel.step()
     economyModel.execute_model(30)
