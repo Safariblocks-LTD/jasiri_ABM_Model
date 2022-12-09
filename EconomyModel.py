@@ -5,7 +5,6 @@ from mesa.time import RandomActivation
 from mesa.space import SingleGrid, MultiGrid
 from mesa.datacollection import DataCollector
 
-
 # global variables
 assurance_incentive_pool = 0
 transaction_incentive_pool = 0
@@ -28,8 +27,10 @@ def assurance_incentive_gini(model):
 def get_revenue(model):
     return model.protocol_revenue
 
+
 def get_model_assurance_probability(model):
     return model.model_assurace_probability
+
 
 class EconomyModel(Model):
 
@@ -46,9 +47,9 @@ class EconomyModel(Model):
         self.unlock_reserve = 0
         self.datacollector = DataCollector(
             model_reporters = {
-                "Protocol revenue": get_revenue, "Model assurance probability": get_model_assurance_probability
+                "Model assurance probability": get_model_assurance_probability
             },
-            agent_reporters = {"Assurance probability": "assurance_probability"}
+            agent_reporters = {"Assurance_probability": "assurance_probability"}
         )
         self.myLiquidityPool = liquidityPoolModel
         #self.datacollector = DataCollector(model_reporters = {"Protocol revenue": get_revenue, "Model assurance probability": get_model_assurance_probability
@@ -88,6 +89,7 @@ class EconomyModel(Model):
         model_assurace_probabilities = economyModel.datacollector.get_model_vars_dataframe()
         protocol_revenue = economyModel.datacollector.get_model_vars_dataframe()
         model_assurace_probabilities.plot()
+        
         print(f"\nRewarded assured fraction is one in {fraction_to_reward} agents who assured asset in last 30-day period.")
         print(f"Number of agents in network is {self.num_agents} \n")
 
@@ -168,19 +170,24 @@ class AgentModel(Agent):
         if self.has_transacted: # @ASSUMPTION: everyone who transacted getting incentive, as opposed to assurance
             self.token_wealth += self.transaction_incentive
 
+            
     def move(self):
         pass
 
+    
     def transact(self):
         self.has_transacted = True
 
+        
     def update_assurance_probability_sigmoidal(self, incentive):
         self.assurance_probability = 0.1 + (0.9 / 1 + math.exp(-1 * incentive)) # @IMPLEMENT step count k to mimic x along x-axis
 
+        
     # using the sigmoid function because reaction is not linear: getting 100 times more incentive does not means you are 100 times more likely to act i.e. plateaus
     def update_assurance_probability_recursive(self, incentive, β):
         self.assurance_probability += (1 - self.assurance_probability) * (1 / (1 + math.exp(-1 * (incentive) )))
 
+        
     # def non_incentivization_effect(self): move effect here for more detail            
 
     def step(self):
@@ -236,8 +243,7 @@ class LiquidityPoolModel(Model):
             liquidity_provider.accept_reqard(reward_value)
 
 
-
-
+            
 class LiquidityProvider(Agent):
 
     def __init__(self, unique_id, model):
@@ -253,9 +259,11 @@ class LiquidityProvider(Agent):
         else:
             pass
     
+    
     def add_liquidity(self):
         pass
 
+    
     def remove_liquidity(self, fraction):
         pass
 
@@ -277,13 +285,11 @@ if __name__ == "__main__":
 
     liquidityPoolModel = LiquidityPoolModel(50, 10, 10)
 
-    economyModel = EconomyModel(4, 10, 10, liquidityPoolModel)
+    economyModel = EconomyModel(10, 10, 10, liquidityPoolModel)
     
-    #for run_i in range(2):     
-    #    economyModel.step()
     economyModel.execute_model(30)
 
-    #gini = economyModel.datacollector.get_model_vars_dataframe()
     agent_assurance_probabilities = economyModel.datacollector.get_agent_vars_dataframe()
-    print(agent_assurance_probabilities.head(n=40))
-    #agent_assurance_probabilities.plot()
+    single_agent_assurance = agent_assurance_probabilities.xs(2, level="AgentID")
+    #print(agent_assurance_probabilities.head(n=40))
+    single_agent_assurance.Assurance_probability.plot()
