@@ -46,13 +46,11 @@ class EconomyModel(Model):
         self.protocol_revenue = 0
         self.unlock_reserve = 0
         self.datacollector = DataCollector(
-            model_reporters = {
-                "Model assurance probability": get_model_assurance_probability
-            },
+            model_reporters = {"Protocol revenue": get_revenue},
             agent_reporters = {"Assurance_probability": "assurance_probability"}
         )
         self.myLiquidityPool = liquidityPoolModel
-        #self.datacollector = DataCollector(model_reporters = {"Protocol revenue": get_revenue, "Model assurance probability": get_model_assurance_probability
+        #self.datacollector = DataCollector(model_reporters = {"Model assurance probability": get_model_assurance_probability
         #    }, agent_reporters = {"Assurance probability": "assurance_probability"})
 
         # create agents
@@ -144,7 +142,7 @@ class AgentModel(Agent):
         UNLOCK_value = (1.0-0.3-0.075) * self.asset_wealth
         liquidity_confidence_score = UNLOCK_value / liquidityPoolModel.UNLOCK_volume
 
-        if self.assurance_probability * self.model.model_assurace_probability > 0.35 and liquidity_confidence_score > 0.01: 
+        if self.assurance_probability * self.model.model_assurace_probability > 0.5 and liquidity_confidence_score > 0.001: 
 
             global assurance_incentive_pool, transaction_incentive_pool, economy_token_wealth, fraction_to_reward, liquidity_providers_incentive_pool
         
@@ -230,8 +228,14 @@ class LiquidityPoolModel(Model):
 
 
     def take_liquidity(self, UNLOCK_ALGO_pair):
-        self.UNLOCK_volume += UNLOCK_ALGO_pair[0]
-        self.ALGO_volume += UNLOCK_ALGO_pair[1]
+        if self.model.schedule.steps == 1:        
+            self.UNLOCK_volume += UNLOCK_ALGO_pair[0]
+            self.ALGO_volume += UNLOCK_ALGO_pair[1]
+            for agent in self.schedule.agents:
+                agent.provide_liquidity()
+
+        for agent in self.schedule.agents:
+            agent.add_liquidity()
 
     
     def reward_liquidity_providers(self):
@@ -240,7 +244,7 @@ class LiquidityPoolModel(Model):
         for liquidity_provider in self.schedule.agents:
             reward_fraction = liquidity_provider.UNLOCK_volume / self.UNLOCK_volume
             reward_value = incentive_pool * reward_fraction
-            liquidity_provider.accept_reqard(reward_value)
+            liquidity_provider.accept_reward(reward_value)
 
 
             
@@ -261,6 +265,7 @@ class LiquidityProvider(Agent):
     
     
     def add_liquidity(self):
+        # make this on the condition that some requirements are met
         pass
 
     
@@ -292,4 +297,4 @@ if __name__ == "__main__":
     agent_assurance_probabilities = economyModel.datacollector.get_agent_vars_dataframe()
     single_agent_assurance = agent_assurance_probabilities.xs(2, level="AgentID")
     #print(agent_assurance_probabilities.head(n=40))
-    single_agent_assurance.Assurance_probability.plot()
+    #single_agent_assurance.Assurance_probability.plot()
